@@ -38,6 +38,11 @@ class TestServicesQuery {
     default: '["localhost:9092"]',
   })
   kafkaBrokers?: string;
+  @ApiPropertyOptional({
+    default: 'false',
+  })
+  kafkaSsl?: string;
+
   @ApiPropertyOptional({ default: 'redis://localhost:6379' })
   redisUrl?: string;
   @ApiPropertyOptional()
@@ -119,6 +124,7 @@ export class AppController {
       kafka = new Kafka({
         clientId: 'my-app',
         brokers: JSON.parse(query.kafkaBrokers),
+        ssl: query.kafkaSsl == 'true',
       });
 
       producer = kafka.producer();
