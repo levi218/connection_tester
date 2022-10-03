@@ -158,10 +158,14 @@ export class AppController {
     try {
       redisClient = createClient({
         url: query.redisUrl,
-        ...(query.redisPass && query.redisUser
+        ...(query.redisPass
+          ? {
+              password: query.redisPass,
+            }
+          : {}),
+        ...(query.redisUser
           ? {
               username: query.redisUser,
-              password: query.redisPass,
             }
           : {}),
       });
