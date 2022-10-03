@@ -23,9 +23,13 @@ class TestServicesQuery {
     default: '3306',
   })
   mysqlPort?: string;
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    default: 'user',
+  })
   mysqlUser?: string;
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    default: 'secret',
+  })
   mysqlPass?: string;
   @ApiPropertyOptional()
   mysqlDb?: string;
@@ -41,22 +45,18 @@ class TestServicesQuery {
   @ApiPropertyOptional()
   redisPass?: string;
 }
+const withTimeout = (millis, promise) => {
+  const timeout = new Promise((resolve, reject) =>
+    setTimeout(() => resolve({ status: false, msg: 'Timed out' }), millis),
+  );
+  return Promise.race([promise, timeout]);
+};
+
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  async getHello(@Query() query: TestServicesQuery) {
-    const result = {
-      elasticSearch: {
-        status: true,
-        msg: null,
-      },
-      redis: { status: true, msg: null },
-      kafka: { status: true, msg: null },
-      mysql: { status: true, msg: null },
-    };
-    // ELASTICSEARCH
+  async testElasticSearch(query: TestServicesQuery) {
     let elasticClient: Client;
     try {
       elasticClient = new Client({
@@ -71,16 +71,20 @@ export class AppController {
           : {}),
       });
       await elasticClient.cluster.health();
+      return {
+        status: true,
+        msg: null,
+      };
     } catch (ex) {
-      result.elasticSearch = {
+      return {
         status: false,
         msg: ex.toString() + '\n\n' + ex?.stack,
       };
     } finally {
       await elasticClient?.close?.();
     }
-
-    // MYSQL
+  }
+  async testMysql(query: TestServicesQuery) {
     let connection: mysql.Connection;
     try {
       connection = await mysql.createConnection({
@@ -92,16 +96,20 @@ export class AppController {
       });
 
       await connection.connect();
+      return {
+        status: true,
+        msg: null,
+      };
     } catch (ex) {
-      result.mysql = {
+      return {
         status: false,
         msg: ex.toString() + '\n\n' + ex?.stack,
       };
     } finally {
       await connection?.end?.();
     }
-
-    // KAFKA
+  }
+  async testKafka(query: TestServicesQuery) {
     let kafka: Kafka;
     let producer: Producer;
     let consumer: Consumer;
@@ -131,8 +139,12 @@ export class AppController {
           });
         },
       });
+      return {
+        status: true,
+        msg: null,
+      };
     } catch (ex) {
-      result.kafka = {
+      return {
         status: false,
         msg: ex.toString() + '\n\n' + ex?.stack,
       };
@@ -140,9 +152,8 @@ export class AppController {
       await consumer?.disconnect?.();
       await producer?.disconnect?.();
     }
-
-    //REDIS
-
+  }
+  async testRedis(query: TestServicesQuery) {
     let redisClient: RedisClientType;
     try {
       redisClient = createClient({
@@ -158,14 +169,33 @@ export class AppController {
       await redisClient.connect();
       const result = await redisClient.ping();
       console.log(result);
+      return {
+        status: true,
+        msg: null,
+      };
     } catch (ex) {
-      result.redis = {
+      return {
         status: false,
         msg: ex.toString() + '\n\n' + ex?.stack,
       };
     } finally {
       await redisClient?.disconnect?.();
     }
+  }
+  @Get()
+  async getHello(@Query() query: TestServicesQuery) {
+    const tests = await Promise.allSettled([
+      withTimeout(60000, this.testElasticSearch(query)),
+      withTimeout(60000, this.testRedis(query)),
+      withTimeout(60000, this.testKafka(query)),
+      withTimeout(60000, this.testMysql(query)),
+    ]);
+    const result = {
+      elasticSearch: tests[0],
+      redis: tests[1],
+      kafka: tests[2],
+      mysql: tests[3],
+    };
     return result;
   }
 }

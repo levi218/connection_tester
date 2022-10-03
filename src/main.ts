@@ -8,8 +8,6 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Test')
     .addServer('http://localhost:3000/', 'Local')
-    .addServer('https://api.hrm.staging.lisod.vn/', 'Staging')
-    .addServer('https://api.hrm.lisod.vn/', 'Production')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
