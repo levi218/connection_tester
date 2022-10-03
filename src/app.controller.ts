@@ -44,6 +44,8 @@ class TestServicesQuery {
   redisUser?: string;
   @ApiPropertyOptional()
   redisPass?: string;
+  @ApiPropertyOptional()
+  redisTls?: string;
 }
 const withTimeout = (millis, promise) => {
   const timeout = new Promise((resolve, reject) =>
